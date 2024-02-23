@@ -32,8 +32,11 @@ func getSystemdObject(conn *dbus.Conn) (*dbus.BusObject, error) {
 	return &systemdObj, nil
 }
 
-func getSystemdUnitObject(conn *dbus.Conn, systemdObj *dbus.BusObject, serviceName string) (*dbus.BusObject, error) {
-
+func getSystemdUnitObject(conn *dbus.Conn, serviceName string) (*dbus.BusObject, error) {
+	systemdObj, err := getSystemdObject(conn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get systemd obj: %v", err)
+	}
 	var unitObjectPath dbus.ObjectPath
 	call := (*systemdObj).Call(systemdGetUnitMethod, 0, serviceName)
 	//The name org.freedesktop.systemdl was not provided by any .service files
@@ -59,23 +62,18 @@ func getUnitStatus(unitObj *dbus.BusObject) (string, error) {
 	return state, nil
 }
 
-func checkServiceStatus(conn *dbus.Conn, serviceName string) (*dbus.BusObject, *dbus.BusObject, bool, error) {
-	systemdObj, err := getSystemdObject(conn)
+func checkServiceStatus(conn *dbus.Conn, serviceName string) (*dbus.BusObject, bool, error) {
+	unitObj, err := getSystemdUnitObject(conn, serviceName)
 	if err != nil {
-		return nil, nil, false, err
-	}
-
-	unitObj, err := getSystemdUnitObject(conn, systemdObj, serviceName)
-	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
 
 	unitState, err := getUnitStatus(unitObj)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, false, err
 	}
 	log.Printf("Service %s has unit state: %s", serviceName, unitState)
-	return systemdObj, unitObj, !((unitState == "inactive") || (unitState == "failed")), nil
+	return unitObj, !((unitState == "inactive") || (unitState == "failed")), nil
 }
 
 func CheckServiceStatus(serviceName string) (bool, error) {
@@ -85,7 +83,7 @@ func CheckServiceStatus(serviceName string) (bool, error) {
 	}
 	defer conn.Close()
 
-	_, _, res, err := checkServiceStatus(conn, serviceName)
+	_, res, err := checkServiceStatus(conn, serviceName)
 	return res, err
 }
 
@@ -153,7 +151,11 @@ func StartService(serviceName string) error {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
 	defer conn.Close()
-	systemdObj, _, res, err := checkServiceStatus(conn, serviceName)
+	systemdObj, err := getSystemdObject(conn)
+	if err != nil {
+		return fmt.Errorf("failed to get systemd obj: %v", err)
+	}
+	_, res, err := checkServiceStatus(conn, serviceName)
 	if err != nil {
 		return err
 	}
@@ -174,7 +176,7 @@ func StartService(serviceName string) error {
 	if jobResult == "done" {
 		return nil
 	}
-	_, _, res, err = checkServiceStatus(conn, serviceName)
+	_, res, err = checkServiceStatus(conn, serviceName)
 	if err != nil {
 		return fmt.Errorf("job to start unit failed and checking state of service gave error: %v", err)
 	} else if !res {
@@ -189,7 +191,11 @@ func StopService(serviceName string) error {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
 	defer conn.Close()
-	systemdObj, _, res, err := checkServiceStatus(conn, serviceName)
+	systemdObj, err := getSystemdObject(conn)
+	if err != nil {
+		return fmt.Errorf("failed to get systemd obj: %v", err)
+	}
+	_, res, err := checkServiceStatus(conn, serviceName)
 	if err != nil {
 		return err
 	}
@@ -210,7 +216,7 @@ func StopService(serviceName string) error {
 	if jobResult == "done" {
 		return nil
 	}
-	_, _, res, err = checkServiceStatus(conn, serviceName)
+	_, res, err = checkServiceStatus(conn, serviceName)
 	if err != nil {
 		return fmt.Errorf("job to stop unit failed and checking state of service gave error: %v", err)
 	} else if res {
