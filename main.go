@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	wifiInterfaceName = "wlan0"
+	wifiInterfaceName = "wlp0s20f3"
 )
 
 func main() {
@@ -46,4 +46,19 @@ func main() {
 
 	state, err = network.CheckDeviceState(conn, devObj)
 	log.Printf("Device state: %d, Err: %v", state, err)
+
+	subsc, err := network.GetNetworkManagerStateSubscription()
+	if err != nil {
+		log.Fatalf("GetNetworkManagerStateSubscription(): %v", err)
+	}
+	defer subsc.Join()
+	defer subsc.Stop()
+	for {
+		state := <-subsc.C
+		stateName, ok := network.NM_STATE_MAP[state]
+		if !ok {
+			stateName = "Invalid"
+		}
+		log.Printf("-> State: %s (%d)", stateName, state)
+	}
 }

@@ -104,13 +104,6 @@ var NM_DEVICE_STATE_MAP = map[uint32]string{
 	NM_DEVICE_STATE_FAILED:       "Failed",
 }
 
-func GetNetworkManagerStateSubscription() (*unix.DBusSignalSubscription, error) {
-	matchRule := fmt.Sprintf("type='signal',interface='%s',member='%s',path='%s'", unix.NetworkManagerInterface, unix.NetworkManagerSignalState, unix.NetworkManagerObjectPath)
-	sub := &unix.DBusSignalSubscription{}
-	err := sub.MakeDBusSignalSubscription(matchRule, 20)
-	return sub, err
-}
-
 func getNetworkManagerObject(conn *dbus.Conn) *dbus.BusObject {
 	nm := conn.Object(NetworkManagerInterface, NetworkManagerObjectPath)
 	return &nm
@@ -372,6 +365,51 @@ func ConnectToSSID(ssid string, pass string, conn *dbus.Conn, devPath dbus.Objec
 	}
 	fmt.Printf("Connection activated: %s on device: %s\n", activeConnectionPath, devicePath)
 	return nil
+}
+
+type NetworkManagerStateSubscription struct {
+	C    chan uint32
+	Stop func()
+	Join func()
+}
+
+func goParseNetworkManagerStateSignals(ctx context.Context, wg *sync.WaitGroup, sub *unix.DBusSignalSubscription, outCh chan uint32) {
+	defer wg.Done()
+	defer sub.Conn.Close()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case sig := <-sub.C:
+			if len(sig.Body) >= 1 {
+				val, ok := sig.Body[0].(uint32)
+				if ok {
+					outCh <- val
+				}
+			}
+		}
+	}
+}
+
+func GetNetworkManagerStateSubscription() (*NetworkManagerStateSubscription, error) {
+	matchRule := fmt.Sprintf("type='signal',interface='%s',member='%s',path='%s'", unix.NetworkManagerInterface, unix.NetworkManagerSignalState, unix.NetworkManagerObjectPath)
+	sub := &unix.DBusSignalSubscription{}
+	err := sub.MakeDBusSignalSubscription(matchRule, 20)
+	if err != nil {
+		return nil, err
+	}
+	outCh := make(chan uint32, 20)
+	wg := &sync.WaitGroup{}
+	ctx, cancel := context.WithCancel(context.Background())
+	wg.Add(1)
+	go goParseNetworkManagerStateSignals(ctx, wg, sub, outCh)
+	ret := &NetworkManagerStateSubscription{
+		C:    outCh,
+		Stop: cancel,
+		Join: wg.Done,
+	}
+	return ret, nil
 }
 
 /*
