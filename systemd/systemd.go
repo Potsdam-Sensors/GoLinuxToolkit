@@ -81,7 +81,7 @@ func CheckServiceStatus(serviceName string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
-	defer conn.Close()
+	// defer conn.Close()
 
 	_, res, err := checkServiceStatus(conn, serviceName)
 	return res, err
@@ -150,7 +150,7 @@ func StartService(serviceName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
-	defer conn.Close()
+	// defer conn.Close()
 	systemdObj, err := getSystemdObject(conn)
 	if err != nil {
 		return fmt.Errorf("failed to get systemd obj: %v", err)
@@ -190,7 +190,7 @@ func StopService(serviceName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
-	defer conn.Close()
+	// defer conn.Close()
 	systemdObj, err := getSystemdObject(conn)
 	if err != nil {
 		return fmt.Errorf("failed to get systemd obj: %v", err)
