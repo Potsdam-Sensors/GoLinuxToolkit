@@ -150,8 +150,6 @@ func StartService(serviceName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
-	log.Printf("Not closing anything")
-	// defer conn.Close()
 	systemdObj, err := getSystemdObject(conn)
 	if err != nil {
 		return fmt.Errorf("failed to get systemd obj: %v", err)
@@ -171,7 +169,7 @@ func StartService(serviceName string) error {
 
 	jobResult, err := waitJobComplete(conn, startJobPath)
 	if err != nil {
-		return fmt.Errorf("waiting for start job failed with error: %v", err)
+		log.Printf("[Warning] Waiting for start job failed with error: %v", err)
 	}
 	log.Printf("Job to start service %s completed with result: %s", serviceName, jobResult)
 	if jobResult == "done" {
@@ -191,8 +189,6 @@ func StopService(serviceName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
-	log.Printf("Not closing anything")
-	// defer conn.Close()
 	systemdObj, err := getSystemdObject(conn)
 	if err != nil {
 		return fmt.Errorf("failed to get systemd obj: %v", err)
@@ -212,7 +208,7 @@ func StopService(serviceName string) error {
 
 	jobResult, err := waitJobComplete(conn, stopJobPath)
 	if err != nil {
-		return fmt.Errorf("waiting for stop job failed with error: %v", err)
+		log.Printf("[Warning] Waiting for stop job failed with error: %v", err)
 	}
 	log.Printf("Job to stop service %s completed with result: %s", serviceName, jobResult)
 	if jobResult == "done" {
