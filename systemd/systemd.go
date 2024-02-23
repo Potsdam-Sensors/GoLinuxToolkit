@@ -150,6 +150,7 @@ func StartService(serviceName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
+	log.Printf("Not closing anything")
 	// defer conn.Close()
 	systemdObj, err := getSystemdObject(conn)
 	if err != nil {
@@ -190,6 +191,7 @@ func StopService(serviceName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connected to the system bus: %v", err)
 	}
+	log.Printf("Not closing anything")
 	// defer conn.Close()
 	systemdObj, err := getSystemdObject(conn)
 	if err != nil {
